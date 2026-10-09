@@ -1,0 +1,7 @@
+{
+  "appId": "id.plantdigital.cekblok",
+  "appName": "Cek Blok",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}
