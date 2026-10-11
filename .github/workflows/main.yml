@@ -62,11 +62,22 @@ jobs:
             fi
           fi
 
+      - name: Unduh pustaka (agar APK jalan offline)
+        run: |
+          set -e
+          [ -f exceljs.min.js ] || curl -fsSL --retry 3 -o exceljs.min.js https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js
+          [ -f pdf.min.js ] || curl -fsSL --retry 3 -o pdf.min.js https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.min.mjs
+          [ -f pdf.worker.min.js ] || curl -fsSL --retry 3 -o pdf.worker.min.js https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.worker.min.mjs
+          for f in exceljs.min.js pdf.min.js pdf.worker.min.js; do
+            [ "$(stat -c%s "$f")" -gt 100000 ] || { echo "::error::$f gagal diunduh atau tidak valid"; exit 1; }
+          done
+          ls -lh exceljs.min.js pdf.min.js pdf.worker.min.js
+
       - name: Siapkan file web
         run: |
           mkdir -p www
           cp index.html www/
-          for f in manifest.json icon-192.png icon-512.png menu-hero.png; do
+          for f in manifest.json icon-192.png icon-512.png menu-hero.png pdf.min.js pdf.worker.min.js exceljs.min.js; do
             if [ -f "$f" ]; then cp "$f" www/; else echo "lewati $f (tidak ada)"; fi
           done
 
@@ -78,6 +89,22 @@ jobs:
 
       - name: Izin, versi, ikon
         run: bash scripts/patch-android.sh "${{ github.run_number }}"
+
+      - name: Pasang ikon aplikasi
+        run: |
+          set -e
+          if [ -f android-icons.zip ]; then
+            rm -rf "$RUNNER_TEMP/ikon" && mkdir -p "$RUNNER_TEMP/ikon"
+            unzip -q -o android-icons.zip -d "$RUNNER_TEMP/ikon"
+            RES=android/app/src/main/res
+            find "$RES" -name 'ic_launcher*.webp' -delete
+            cp -r "$RUNNER_TEMP/ikon/android-res/." "$RES/"
+            mkdir -p "$RES/values"
+            printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<resources>' '    <color name="ic_launcher_background">#F3FEF3</color>' '</resources>' > "$RES/values/ic_launcher_background.xml"
+            echo "Ikon baru dipasang."
+          else
+            echo "::warning::android-icons.zip tidak ada di repo, ikon bawaan dipakai."
+          fi
 
       - name: Sinkronkan file web
         run: npx cap sync android
