@@ -1200,7 +1200,7 @@ const uniqSorted = a=>[...new Set(a)].sort(natCmp);
 const LEVELS = ['estate','kebun','afdeling','blok'];
 const LEVEL_LABEL = {estate:'Estate',kebun:'Kebun',afdeling:'Afdeling',blok:'Blok'};
 const DEFAULT_BLOCK = 'B049';
-const sel = {pt:'',kebun:'',afdeling:'',blok:''};
+const sel = {estate:'',kebun:'',afdeling:'',blok:''};
 const combos = {};
 let currentRow = null;
 const luasEl=document.getElementById('luas'), pokokEl=document.getElementById('pokok'), blockInfoEl=document.getElementById('blockInfo');
@@ -1232,7 +1232,7 @@ function syncUI(skip){
 (function(){
   const $=id=>document.getElementById(id), KEY='cekBlokDbAresta', fmt=n=>Number(n).toLocaleString('id-ID');
   const nrm=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-  const HDR={pt:/^(pt|estate|perusahaan|company)$/,kebun:/^(kebun|estate|kbn)$/,afdeling:/^(afdeling|afd|afdl|divisi)$/,blok:/^(blok|block|blk|kode blok|nama blok)$/,luas:/^(luas|luas ha|luas \(?ha\)?|area|area ha|ha)$/,pokok:/^(jumlah pokok|jml pokok|pokok|pkk|total pokok|populasi|jumlah pkk)$/};
+  const HDR={estate:/^(pt|estate|perusahaan|company)$/,kebun:/^(kebun|estate|kbn)$/,afdeling:/^(afdeling|afd|afdl|divisi)$/,blok:/^(blok|block|blk|kode blok|nama blok)$/,luas:/^(luas|luas ha|luas \(?ha\)?|area|area ha|ha)$/,pokok:/^(jumlah pokok|jml pokok|pokok|pkk|total pokok|populasi|jumlah pkk)$/};
   function status(){
     const el=$('dbArestaStatus'), rs=$('dbArestaReset'); if(!el) return;
     let j=null; try{ j=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){}
@@ -1243,7 +1243,7 @@ function syncUI(skip){
   function applyRows(rows){
     DB.length=0; rows.forEach(a=>DB.push({estate:a[0],kebun:a[1],afdeling:a[2],blok:a[3],luas:a[4],pokok:a[5]}));
     DB_INDEX.clear(); DB.forEach(r=>DB_INDEX.set(`${r.estate}|${r.kebun}|${r.afdeling}|${r.blok}`,r));
-    try{ const pts=optionsFor('pt'); if(!pts.includes(sel.estate)) sel.estate=''; setSel('pt',sel.estate,{silent:true}); }catch(e){ console.warn(e); }
+    try{ const estates=optionsFor('estate')||[]; if(!estates.includes(sel.estate)) sel.estate=''; setSel('estate',sel.estate,{silent:true}); }catch(e){ console.warn(e); }
     status();
   }
   /* --- baca XLSX: ZIP + XML --- */
@@ -1426,9 +1426,9 @@ function makeCombo(level){
 LEVELS.forEach(makeCombo);
 (function initSelection(){
   let last=null; try{ last=JSON.parse(localStorage.getItem('pemeriksaanBlokLastSel')||'null'); }catch{}
-  if(last){ applySelection(last,{silent:true}); return; }
+  if(last){ if(!last.estate&&last.pt) last.estate=last.pt; applySelection(last,{silent:true}); return; }
   const def=DB.find(r=>r.blok===DEFAULT_BLOCK);
-  applySelection(def?{pt:def.pt,kebun:def.kebun,afdeling:def.afdeling,blok:def.blok}:null,{silent:true});
+  applySelection(def?{estate:def.estate,kebun:def.kebun,afdeling:def.afdeling,blok:def.blok}:null,{silent:true});
 })();
 
 function selectedPasarSides(){return ['Kanan','Kiri'].filter(side=>document.querySelector(`[data-pasar-pikul="${side}"]`)?.classList.contains('active'));}
@@ -1699,37 +1699,76 @@ function showAncakError(show){ document.getElementById('ancakStatus').classList.
 document.getElementById('ancakStatus').addEventListener('change',()=>{ syncAncakUI(); if(getAncakStatus()) showAncakError(false); });
 syncAncakUI();
 
-function compressImage(file, maxSize=900, quality=.72) {
-  return new Promise((resolve,reject) => {
-    const reader=new FileReader();
-    reader.onerror=reject;
-    reader.onload=() => {
-      const img=new Image(); img.onerror=reject;
-      img.onload=() => {
-        let w=img.width,h=img.height;
-        if(Math.max(w,h)>maxSize){const r=maxSize/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r);}
-        const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
-        canvas.getContext('2d').drawImage(img,0,0,w,h);
-        resolve(canvas.toDataURL('image/jpeg',quality));
-      };
-      img.src=reader.result;
-    };
-    reader.readAsDataURL(file);
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result));
+    r.onerror=()=>reject(r.error||new Error('Gagal membaca foto'));
+    r.readAsDataURL(blob);
   });
 }
+async function compressImage(file, maxSize=720, quality=.62) {
+  /* Hindari readAsDataURL pada foto kamera asli karena dapat menggandakan pemakaian RAM. */
+  let source=null, objectUrl='';
+  try{
+    if('createImageBitmap' in window){
+      source=await createImageBitmap(file, {imageOrientation:'from-image'}).catch(()=>createImageBitmap(file));
+    }else{
+      objectUrl=URL.createObjectURL(file);
+      source=await new Promise((resolve,reject)=>{
+        const img=new Image();
+        img.onload=()=>resolve(img);
+        img.onerror=()=>reject(new Error('Format foto tidak didukung'));
+        img.src=objectUrl;
+      });
+    }
+    const sw=source.naturalWidth||source.width, sh=source.naturalHeight||source.height;
+    if(!sw||!sh) throw new Error('Ukuran foto tidak valid');
+    const scale=Math.min(1,maxSize/Math.max(sw,sh));
+    const w=Math.max(1,Math.round(sw*scale)), h=Math.max(1,Math.round(sh*scale));
+    const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false});
+    if(!ctx) throw new Error('Canvas tidak tersedia');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(source,0,0,w,h);
+    const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Kompresi foto gagal')),'image/jpeg',quality));
+    canvas.width=1; canvas.height=1;
+    return await blobToDataURL(blob);
+  }finally{
+    if(source&&typeof source.close==='function') source.close();
+    if(objectUrl) URL.revokeObjectURL(objectUrl);
+  }
+}
+const photoJobs=new Set();
 async function handlePhoto(input) {
-  const id=input.dataset.photo, file=input.files[0]; if(!file) return;
+  const id=input.dataset.photo, file=input.files&&input.files[0]; if(!file||photoJobs.has(id)) return;
   if(!file.type.startsWith('image/')){alert('Pilih file gambar.');input.value='';return;}
+  photoJobs.add(id); input.disabled=true;
+  const nameEl=document.getElementById(`photo-name-${id}`);
+  const oldText=nameEl?nameEl.textContent:'';
+  if(nameEl) nameEl.textContent='Memproses foto...';
   try {
+    /* Beri waktu WebView menyelesaikan transisi dari kamera sebelum pekerjaan gambar dimulai. */
+    await new Promise(resolve=>setTimeout(resolve,80));
     const dataUrl=await compressImage(file);
-    findingPhotos[id]=dataUrl;   /* foto hanya bukti; koordinat diambil lewat tombol GPS */
+    findingPhotos[id]=dataUrl;
     updateManualState(id);
-    await saveDraftNow();
     const preview=document.getElementById(`preview-${id}`);
-    preview.querySelector('img').src=findingPhotos[id]; preview.style.display='block';
-    document.getElementById(`photo-name-${id}`).textContent='Foto tersimpan ✓ ('+Math.round(findingPhotos[id].length*0.75/1024)+' KB)'; refreshFindingSummaries();
-  } catch {
-    alert('Gambar tidak dapat diproses. Silakan pilih gambar lain.');
+    const img=preview&&preview.querySelector('img');
+    if(img) img.src=dataUrl;
+    if(preview) preview.style.display='block';
+    if(nameEl) nameEl.textContent='Foto tersimpan ✓ ('+Math.round(dataUrl.length*0.75/1024)+' KB)';
+    refreshFindingSummaries();
+    input.value='';
+    /* Simpan setelah UI selesai agar tidak menumpuk kompresi dan penulisan IndexedDB pada frame yang sama. */
+    await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
+    await saveDraftNow();
+  } catch(e) {
+    console.error('Foto gagal diproses',e);
+    if(nameEl) nameEl.textContent=oldText||'Belum ada gambar';
+    input.value='';
+    alert('Gambar tidak dapat diproses. Coba ambil ulang foto atau pilih gambar lain.');
+  } finally {
+    input.disabled=false; photoJobs.delete(id);
   }
 }
 document.querySelectorAll('.photo-input').forEach(input => input.addEventListener('change',()=>handlePhoto(input)));
