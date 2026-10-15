@@ -1707,35 +1707,40 @@ function blobToDataURL(blob){
     r.readAsDataURL(blob);
   });
 }
-async function compressImage(file, maxSize=720, quality=.62) {
-  /* Hindari readAsDataURL pada foto kamera asli karena dapat menggandakan pemakaian RAM. */
-  let source=null, objectUrl='';
+async function compressImage(file, maxSize=480, quality=.50) {
+  /* Decode langsung ke ukuran kecil untuk mencegah lonjakan RAM dari foto kamera resolusi tinggi. */
+  if(file.size>25*1024*1024) throw new Error('Foto terlalu besar (maksimum 25 MB)');
+  let source=null, objectUrl='', canvas=null;
   try{
     if('createImageBitmap' in window){
-      source=await createImageBitmap(file, {imageOrientation:'from-image'}).catch(()=>createImageBitmap(file));
+      /* Baca dimensi tanpa mempertahankan Data URL foto asli di memori. */
+      const probe=await createImageBitmap(file, {imageOrientation:'from-image'}).catch(()=>createImageBitmap(file));
+      const sw=probe.width, sh=probe.height;
+      const scale=Math.min(1,maxSize/Math.max(sw,sh));
+      const w=Math.max(1,Math.round(sw*scale)), h=Math.max(1,Math.round(sh*scale));
+      probe.close();
+      source=await createImageBitmap(file,{imageOrientation:'from-image',resizeWidth:w,resizeHeight:h,resizeQuality:'medium'}).catch(()=>createImageBitmap(file));
     }else{
       objectUrl=URL.createObjectURL(file);
       source=await new Promise((resolve,reject)=>{
-        const img=new Image();
-        img.onload=()=>resolve(img);
-        img.onerror=()=>reject(new Error('Format foto tidak didukung'));
-        img.src=objectUrl;
+        const img=new Image(); img.decoding='async';
+        img.onload=()=>resolve(img); img.onerror=()=>reject(new Error('Format foto tidak didukung')); img.src=objectUrl;
       });
     }
     const sw=source.naturalWidth||source.width, sh=source.naturalHeight||source.height;
     if(!sw||!sh) throw new Error('Ukuran foto tidak valid');
     const scale=Math.min(1,maxSize/Math.max(sw,sh));
     const w=Math.max(1,Math.round(sw*scale)), h=Math.max(1,Math.round(sh*scale));
-    const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
-    const ctx=canvas.getContext('2d',{alpha:false});
+    canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
     if(!ctx) throw new Error('Canvas tidak tersedia');
     ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h); ctx.drawImage(source,0,0,w,h);
     const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Kompresi foto gagal')),'image/jpeg',quality));
-    canvas.width=1; canvas.height=1;
     return await blobToDataURL(blob);
   }finally{
     if(source&&typeof source.close==='function') source.close();
     if(objectUrl) URL.revokeObjectURL(objectUrl);
+    if(canvas){ canvas.width=1; canvas.height=1; canvas.remove(); }
   }
 }
 const photoJobs=new Set();
@@ -1756,12 +1761,13 @@ async function handlePhoto(input) {
     const img=preview&&preview.querySelector('img');
     if(img) img.src=dataUrl;
     if(preview) preview.style.display='block';
-    if(nameEl) nameEl.textContent='Foto tersimpan ✓ ('+Math.round(dataUrl.length*0.75/1024)+' KB)';
+    if(nameEl) nameEl.textContent='Foto siap disimpan ✓ ('+Math.round(dataUrl.length*0.75/1024)+' KB)';
     refreshFindingSummaries();
     input.value='';
     /* Simpan setelah UI selesai agar tidak menumpuk kompresi dan penulisan IndexedDB pada frame yang sama. */
     await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));
-    await saveDraftNow();
+    if(idb) await idbSet('draftPhoto:'+id,dataUrl);
+    saveDraft();
   } catch(e) {
     console.error('Foto gagal diproses',e);
     if(nameEl) nameEl.textContent=oldText||'Belum ada gambar';
@@ -1786,7 +1792,7 @@ function updateTotal(m){
 function renumberSamples(m){
   extraIds[m].forEach((sid,i)=>{ const t=document.querySelector(`#sample-${sid} .sample-title`); if(t) t.textContent='Sampel '+(i+2); });
 }
-function removePhotoFor(id){
+function removePhotoFor(id){ if(idb) idbDel('draftPhoto:'+id).catch(()=>{});
   delete findingPhotos[id];
   const pv=document.getElementById('preview-'+id); if(pv){ pv.style.display='none'; const im=pv.querySelector('img'); if(im) im.removeAttribute('src'); }
   const inp=document.getElementById('photo-'+id); if(inp) inp.value='';
@@ -2008,7 +2014,10 @@ document.getElementById('inspectionForm').addEventListener('submit',async e=>{
   }
   if(!validateFindingEvidence()) return;
   sanitizeManualLocations();
-  const nowSaved=new Date(); const item={kodeTransaksi:makeTransactionCode(sel.blok,nowSaved),savedAt:nowSaved.getTime(),tanggal:tanggalEl.value,pemeriksa:document.getElementById('pemeriksa').value.trim(),pt:sel.estate,kebun:sel.kebun,afdeling:sel.afdeling,blok:sel.blok,luas:currentRow.luas,pokok:currentRow.pokok,baris:document.getElementById('baris').value,sisiBaris:document.getElementById('sisiBaris').value,noPasarKanan,noPasarKiri,ancak:document.getElementById('ancak').value.trim(),ancakStatus:ancakLabels[getAncakStatus()]||'',semak:num('semak'),tunasan:num('tunasan'),titi:num('titi'),kerdil:num('kerdil'),banjir:num('banjir'),catatan:document.getElementById('catatan').value.trim(),status:getStatus(),details:collectDetails()};
+  const nowSaved=new Date();
+  const pemeriksaAktif=document.getElementById('pemeriksa').value.trim();
+  try{ sessionStorage.setItem('cekBlokPetugasAktif',JSON.stringify({tanggal:tanggalEl.value,pemeriksa:pemeriksaAktif})); }catch(e){}
+  const item={kodeTransaksi:makeTransactionCode(sel.blok,nowSaved),savedAt:nowSaved.getTime(),tanggal:tanggalEl.value,pemeriksa:pemeriksaAktif,pt:sel.estate,kebun:sel.kebun,afdeling:sel.afdeling,blok:sel.blok,luas:currentRow.luas,pokok:currentRow.pokok,baris:document.getElementById('baris').value,sisiBaris:document.getElementById('sisiBaris').value,noPasarKanan,noPasarKiri,ancak:document.getElementById('ancak').value.trim(),ancakStatus:ancakLabels[getAncakStatus()]||'',semak:num('semak'),tunasan:num('tunasan'),titi:num('titi'),kerdil:num('kerdil'),banjir:num('banjir'),catatan:document.getElementById('catatan').value.trim(),status:getStatus(),details:collectDetails()};
   const r=records(); r.unshift(item); const ok=await saveRecords(r); if(!ok){r.shift();return;} renderHistory(); await clearDraft(); alert('Pemeriksaan berhasil disimpan di browser (termasuk '+detailItems(item).filter(x=>x.photo).length+' foto).');
   /* Auto-refresh: form dikosongkan, PT/Kebun/Afdeling harus dipilih ulang */
   try{ localStorage.setItem('pemeriksaanBlokLastSel',JSON.stringify({pt:'',kebun:'',afdeling:''})); }catch{}
@@ -2177,6 +2186,18 @@ document.getElementById('resetAfdPeriod')?.addEventListener('click',()=>{documen
 
 /* ===== Penyimpanan: IndexedDB (kapasitas besar) + draft otomatis ===== */
 let recordsCache=[], idb=null, draftTimer=null;
+function simpanPetugasAktif(){
+  const t=document.getElementById('tanggal'), p=document.getElementById('pemeriksa');
+  if(!t||!p) return;
+  try{ sessionStorage.setItem('cekBlokPetugasAktif',JSON.stringify({tanggal:t.value,pemeriksa:p.value.trim()})); }catch(e){}
+}
+function pulihkanPetugasAktif(){
+  let x=null; try{ x=JSON.parse(sessionStorage.getItem('cekBlokPetugasAktif')||'null'); }catch(e){}
+  if(!x) return;
+  const t=document.getElementById('tanggal'), p=document.getElementById('pemeriksa');
+  if(t&&x.tanggal) t.value=x.tanggal;
+  if(p&&x.pemeriksa) p.value=x.pemeriksa;
+}
 const draftFields=['tanggal','pemeriksa','baris','sisiBaris','noPasarKanan','noPasarKiri','ancak','semak','tunasan','titi','kerdil','banjir','catatan'];
 function idbOpen(){return new Promise((res,rej)=>{try{const q=indexedDB.open('pemeriksaanBlokDB',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}catch(e){rej(e);}});}
 function idbGet(k){return new Promise((res,rej)=>{const r=idb.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
@@ -2186,11 +2207,22 @@ async function saveDraftNow(){
   clearTimeout(draftTimer);
   const fields={}; draftFields.forEach(id=>{const el=document.getElementById(id); if(el) fields[id]=el.value;});
   const extras={}; metricIds.forEach(m=>{extras[m]=extraIds[m].map(sid=>({sid,value:extraValue(sid)}));});
-  const data={fields,sel:{...sel},extras,photos:findingPhotos,locations:findingLocations,ancakStatus:getAncakStatus(),savedAt:Date.now()};
+  const data={fields,sel:{...sel},extras,photoIds:Object.keys(findingPhotos),photos:{},locations:findingLocations,ancakStatus:getAncakStatus(),savedAt:Date.now()};
   try{ if(idb) await idbSet('draft',data); else localStorage.setItem('pemeriksaanBlokDraft',JSON.stringify(data)); }catch(e){console.warn('Draft gagal disimpan',e);}
 }
 function saveDraft(){ clearTimeout(draftTimer); draftTimer=setTimeout(saveDraftNow,300); }
-async function clearDraft(){ clearTimeout(draftTimer); try{ if(idb) await idbDel('draft'); localStorage.removeItem('pemeriksaanBlokDraft'); }catch{} }
+async function clearDraft(){
+  clearTimeout(draftTimer);
+  try{
+    if(idb){
+      let d=null; try{ d=await idbGet('draft'); }catch(e){}
+      const ids=[...new Set([...(d&&d.photoIds||[]),...Object.keys(findingPhotos)])];
+      for(const id of ids) await idbDel('draftPhoto:'+id);
+      await idbDel('draft');
+    }
+    localStorage.removeItem('pemeriksaanBlokDraft');
+  }catch(e){ console.warn('Draft gagal dibersihkan',e); }
+}
 async function restoreDraft(){
   let d=null; try{ d=idb?await idbGet('draft'):JSON.parse(localStorage.getItem('pemeriksaanBlokDraft')||'null'); }catch{}
   if(!d) return;
@@ -2204,6 +2236,16 @@ async function restoreDraft(){
     });
     renumberSamples(m); updateTotal(m);
   });
+  if(idb&&Array.isArray(d.photoIds)){
+    for(const id of d.photoIds){
+      let url=''; try{ url=await idbGet('draftPhoto:'+id)||''; }catch(e){}
+      if(!url) continue;
+      findingPhotos[id]=url;
+      const pv=document.getElementById(`preview-${id}`); if(!pv) continue;
+      const im=pv.querySelector('img'); if(im) im.src=url; pv.style.display='block';
+      const ne=document.getElementById(`photo-name-${id}`); if(ne) ne.textContent='Foto dipulihkan dari draft ✓';
+    }
+  }
   Object.entries(d.photos||{}).forEach(([id,url])=>{
     if(!url) return; findingPhotos[id]=url;
     const pv=document.getElementById(`preview-${id}`); if(!pv) return;
@@ -2231,10 +2273,13 @@ async function initStorage(){
   }catch(e){ console.error(e); }
   recordsCache=list;
   try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch{}
+  pulihkanPetugasAktif();
   await restoreDraft();
   updateStatus(); renderHistory();
 }
 ['input','change'].forEach(ev=>document.getElementById('inspectionForm').addEventListener(ev,saveDraft));
+['tanggal','pemeriksa'].forEach(id=>document.getElementById(id)?.addEventListener('change',simpanPetugasAktif));
+document.getElementById('pemeriksa')?.addEventListener('input',simpanPetugasAktif);
 
 restorePasarPikul(document.getElementById('sisiBaris').value,{silent:true}); updateStatus(); initStorage();
 
@@ -3236,7 +3281,6 @@ const btn=$('menuBtn'),panel=$('menuPanel'),back=$('menuBackdrop'),sub=$('hdrSub
 let toastT=0;
 function setView(v){
   if(!SUB[v]) v='home';
-  if(v==='periksa'){ applySelection(null,{silent:true}); try{ localStorage.removeItem('pemeriksaanBlokLastSel'); }catch(e){} }
   document.body.setAttribute('data-view',v); const gp=$('gpsOfflinePanel'); if(v!=='home'&&gp) gp.classList.remove('show');
   panel.querySelectorAll('.menu-item').forEach(b=>b.classList.toggle('active',b.getAttribute('data-go')===v));
   if(sub) sub.textContent=SUB[v];
