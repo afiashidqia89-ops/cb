@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # Menyesuaikan proyek Android hasil "npx cap add android": izin, nomor versi, ikon, splash.
 # Pemakaian: bash scripts/patch-android.sh <nomor-build>
@@ -20,8 +19,11 @@ add = '''    <uses-permission android:name="android.permission.ACCESS_FINE_LOCAT
 '''
 if 'ACCESS_FINE_LOCATION' not in s:
     s = s.replace('<application', add + '    <application', 1)
+# Heap besar: mencegah WebView dimatikan karena kehabisan memori saat foto kamera diproses (HP RAM 3-4 GB)
+if 'android:largeHeap' not in s:
+    s = s.replace('<application', '<application android:largeHeap="true"', 1)
 open(p, 'w', encoding='utf-8').write(s)
-print('Izin lokasi & kamera ditambahkan')
+print('Izin lokasi, kamera, dan largeHeap ditambahkan')
 PY
 
 # 2) Nomor versi (harus naik setiap build agar bisa menimpa versi lama)
