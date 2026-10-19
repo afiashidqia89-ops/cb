@@ -1707,20 +1707,60 @@ function blobToDataURL(blob){
     r.readAsDataURL(blob);
   });
 }
+/* Baca ukuran (dan orientasi EXIF) dari header JPEG/PNG TANPA men-decode foto, supaya RAM tidak melonjak. */
+async function readImageInfo(file){
+  try{
+    const buf=await file.slice(0,262144).arrayBuffer();
+    const v=new DataView(buf), n=v.byteLength;
+    if(n>=24&&v.getUint32(0)===0x89504E47) return {w:v.getUint32(16),h:v.getUint32(20),o:1};
+    if(n<4||v.getUint16(0)!==0xFFD8) return null;
+    let p=2,o=1;
+    while(p+4<=n){
+      if(v.getUint8(p)!==0xFF){ p++; continue; }
+      const m=v.getUint8(p+1);
+      if(m===0xFF){ p++; continue; }
+      if(m===0xD8||m===0x01||(m>=0xD0&&m<=0xD7)){ p+=2; continue; }
+      if(m===0xD9||m===0xDA) break;
+      const len=v.getUint16(p+2);
+      if(m===0xE1&&p+18<=n&&v.getUint32(p+4)===0x45786966){
+        try{
+          const t=p+10, le=v.getUint16(t)===0x4949, ifd=t+v.getUint32(t+4,le);
+          const cnt=v.getUint16(ifd,le);
+          for(let i=0;i<cnt;i++){
+            const e=ifd+2+i*12; if(e+12>n) break;
+            if(v.getUint16(e,le)===0x0112){ o=v.getUint16(e+8,le); break; }
+          }
+        }catch(e){}
+      }
+      if(m>=0xC0&&m<=0xCF&&m!==0xC4&&m!==0xC8&&m!==0xCC) return {h:v.getUint16(p+5),w:v.getUint16(p+7),o};
+      p+=2+len;
+    }
+  }catch(e){}
+  return null;
+}
 async function compressImage(file, maxSize=480, quality=.50) {
-  /* Decode langsung ke ukuran kecil untuk mencegah lonjakan RAM dari foto kamera resolusi tinggi. */
+  /* Foto kamera (12-50 MP) TIDAK PERNAH di-decode penuh: ukuran dibaca dari header, lalu browser
+     langsung men-decode ke ukuran kecil. Ini mencegah lonjakan RAM yang mematikan WebView di HP RAM kecil. */
   if(file.size>25*1024*1024) throw new Error('Foto terlalu besar (maksimum 25 MB)');
   let source=null, objectUrl='', canvas=null;
   try{
     if('createImageBitmap' in window){
-      /* Baca dimensi tanpa mempertahankan Data URL foto asli di memori. */
-      const probe=await createImageBitmap(file, {imageOrientation:'from-image'}).catch(()=>createImageBitmap(file));
-      const sw=probe.width, sh=probe.height;
-      const scale=Math.min(1,maxSize/Math.max(sw,sh));
-      const w=Math.max(1,Math.round(sw*scale)), h=Math.max(1,Math.round(sh*scale));
-      probe.close();
-      source=await createImageBitmap(file,{imageOrientation:'from-image',resizeWidth:w,resizeHeight:h,resizeQuality:'medium'}).catch(()=>createImageBitmap(file));
-    }else{
+      try{
+        const info=await readImageInfo(file);
+        let tw=maxSize;
+        if(info&&info.w&&info.h){
+          const swap=info.o>=5&&info.o<=8;
+          const ow=swap?info.h:info.w, oh=swap?info.w:info.h;
+          const s=Math.min(1,maxSize/Math.max(ow,oh));
+          tw=Math.max(1,Math.round(ow*s));
+        }
+        /* hanya resizeWidth: tinggi dihitung otomatis mengikuti rasio asli (tidak terdistorsi) */
+        source=await createImageBitmap(file,{imageOrientation:'from-image',resizeWidth:tw,resizeQuality:'medium'});
+      }catch(e){ source=null; }
+    }
+    if(!source){
+      /* Cadangan terakhir (decode penuh): hanya untuk berkas kecil agar tidak memicu crash. */
+      if(file.size>10*1024*1024) throw new Error('Foto terlalu besar untuk diproses di perangkat ini');
       objectUrl=URL.createObjectURL(file);
       source=await new Promise((resolve,reject)=>{
         const img=new Image(); img.decoding='async';
@@ -1743,6 +1783,9 @@ async function compressImage(file, maxSize=480, quality=.50) {
     if(canvas){ canvas.width=1; canvas.height=1; canvas.remove(); }
   }
 }
+/* Antrean: foto diproses satu per satu agar tidak ada dua decode gambar sekaligus. */
+let photoChain=Promise.resolve();
+function compressQueued(file){ const p=photoChain.then(()=>compressImage(file)); photoChain=p.catch(()=>{}); return p; }
 const photoJobs=new Set();
 async function handlePhoto(input) {
   const id=input.dataset.photo, file=input.files&&input.files[0]; if(!file||photoJobs.has(id)) return;
@@ -1754,7 +1797,7 @@ async function handlePhoto(input) {
   try {
     /* Beri waktu WebView menyelesaikan transisi dari kamera sebelum pekerjaan gambar dimulai. */
     await new Promise(resolve=>setTimeout(resolve,80));
-    const dataUrl=await compressImage(file);
+    const dataUrl=await compressQueued(file);
     findingPhotos[id]=dataUrl;
     updateManualState(id);
     const preview=document.getElementById(`preview-${id}`);
@@ -1778,6 +1821,8 @@ async function handlePhoto(input) {
   }
 }
 document.querySelectorAll('.photo-input').forEach(input => input.addEventListener('change',()=>handlePhoto(input)));
+/* Simpan draf sebelum kamera dibuka: bila Android mematikan aplikasi saat kamera aktif (RAM kecil), isian form tetap aman. */
+document.addEventListener('click',e=>{ if(e.target.closest&&e.target.closest('.camera-btn')&&typeof saveDraftNow==='function') saveDraftNow().catch(()=>{}); },true);
 document.querySelectorAll('[data-remove-photo]').forEach(btn => btn.addEventListener('click',()=>removePhotoFor(btn.dataset.removePhoto)));
 
 /* ===== Sampel tambahan (tombol +) ===== */
