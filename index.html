@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Pemeriksaan Kondisi Blok</title>
   <meta name="theme-color" content="#166534">
-<meta name="cek-blok-build" content="2026-10-11-v27-android">
+<meta name="cek-blok-build" content="2026-10-20-v29-android">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Cek Blok">
@@ -37,6 +37,7 @@
   /* Tombol Kembali Android: kembali ke Beranda dulu, baru keluar aplikasi */
   const A=P().App;
   if(A&&A.addListener) A.addListener('backButton',function(){
+    if(window.cekCamIsOpen&&window.cekCamIsOpen()){ window.cekCamClose(); return; }
     const v=document.body.getAttribute('data-view')||'home';
     if(v!=='home'&&window.cekBlokGoView) window.cekBlokGoView('home'); else if(A.exitApp) A.exitApp();
   });
@@ -665,6 +666,7 @@ body[data-view="home"] .home-back{display:none!important}
 /* V36 Dialog pemilihan tanggal ekspor Excel */
 .export-date-backdrop{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.48);backdrop-filter:blur(5px)}
 .export-date-backdrop[hidden]{display:none!important}.export-date-dialog{width:min(520px,100%);padding:20px;border-radius:22px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.34);border:1px solid #dcfce7}.export-date-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:17px}.export-date-icon{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border-radius:14px;background:#dcfce7;font-size:23px}.export-date-head h2{margin:1px 0 4px;color:#14532d;font-size:20px}.export-date-head p{margin:0;color:#64748b;font-size:12px;line-height:1.45}.export-date-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.export-date-grid label{font-size:12px;font-weight:800;color:#334155}.export-date-grid input{margin-top:6px}.export-date-info{margin:14px 0;padding:10px 12px;border-radius:12px;background:#f0fdf4;color:#166534;font-size:12px;font-weight:700;text-align:center}.export-date-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.export-date-actions button{min-height:44px}
+@media(max-width:560px){#trfBackdrop .export-date-actions{display:grid;grid-template-columns:1fr 1fr}.export-date-actions #trfConfirm{grid-column:1/-1}#trfBackdrop .export-date-actions button{width:100%}}
 @media(max-width:560px){.export-date-dialog{padding:16px;border-radius:18px}.export-date-grid{grid-template-columns:1fr}.export-date-actions{display:grid;grid-template-columns:1fr 1fr}.export-date-actions #exportDateConfirm{grid-column:1/-1}.export-date-actions button{width:100%}}
 
 /* V37 Validasi wajib foto dan koordinat setiap temuan */
@@ -1169,6 +1171,14 @@ if(document.readyState==='complete')done();else window.addEventListener('load',d
           <button type="button" class="primary action-icon-btn excel-action" id="exportBtn"><span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 3h11l5 5v13H4V3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 3v5h5M8 11l5 6M13 11l-5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span>Ekspor Excel + Foto</span></button>
         </div>
       </div>
+      <div class="history-data-tools report-box" id="transferBox" aria-label="Transfer data antar HP" style="border-color:#ddd6fe;background:linear-gradient(135deg,#f5f3ff,#fff);flex-direction:column;align-items:stretch">
+        <div class="history-data-tools-copy"><b style="color:#5b21b6">Transfer Data Antar HP (Offline)</b><small>Kirim data transaksi dari HP ini ke HP lain tanpa internet (Bluetooth / Quick Share / Wi-Fi Direct), lalu gabungkan di satu HP. Transaksi yang sudah ada otomatis dilewati, jadi aman dikirim berulang kali.</small></div>
+        <div class="report-actions">
+          <button type="button" class="primary" id="trfSendBtn">📤 Kirim Data ke HP Lain</button>
+          <button type="button" class="secondary" id="trfReceiveBtn">📥 Terima &amp; Gabung Data dari HP Lain</button>
+          <input id="trfFile" type="file" multiple hidden>
+        </div>
+      </div>
       <div class="history-data-tools db-tools report-box" aria-label="Pembaruan DB Aresta" style="border-color:#bbf7d0;background:linear-gradient(135deg,#f0fdf4,#fff);flex-direction:column;align-items:stretch">
         <div class="history-data-tools-copy"><b style="color:#14532d">Data Master Blok (DB Aresta)</b><small id="dbArestaStatus"></small><small>Perbarui dari file Excel (.xlsx) dengan kolom: Estate, Kebun, Afdeling, Blok, Luas (Ha), Jumlah Pokok. Riwayat pemeriksaan tidak berubah.</small></div>
         <div class="report-actions">
@@ -1193,6 +1203,25 @@ if(document.readyState==='complete')done();else window.addEventListener('load',d
       <button type="button" class="secondary" id="exportAllDatesBtn">Semua Tanggal</button>
       <button type="button" class="secondary" id="exportDateCancel">Batal</button>
       <button type="button" class="primary" id="exportDateConfirm">Ekspor Periode</button>
+    </div>
+  </section>
+</div>
+<div class="export-date-backdrop" id="trfBackdrop" hidden>
+  <section class="export-date-dialog" role="dialog" aria-modal="true" aria-labelledby="trfTitle">
+    <div class="export-date-head"><span class="export-date-icon">📤</span><div><h2 id="trfTitle">Kirim Data ke HP Lain</h2><p>Data dibuat menjadi file, lalu dikirim lewat Bluetooth / Quick Share / Wi-Fi Direct. Di HP tujuan, pilih <b>Terima &amp; Gabung Data</b>.</p></div></div>
+    <div class="export-date-grid">
+      <label>Tanggal mulai<input type="date" id="trfStart"></label>
+      <label>Tanggal akhir<input type="date" id="trfEnd"></label>
+    </div>
+    <div class="export-date-grid" style="grid-template-columns:1fr;margin-top:12px">
+      <label>Nama HP / pengirim<input type="text" id="trfName" maxlength="40" placeholder="Contoh: HP Budi"></label>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;font-weight:700;color:#334155"><input type="checkbox" id="trfPhoto" checked style="width:20px;height:20px;margin:0"> Sertakan foto temuan (file lebih besar)</label>
+    <div class="export-date-info" id="trfInfo">-</div>
+    <div class="export-date-actions">
+      <button type="button" class="secondary" id="trfAllDates">Semua Tanggal</button>
+      <button type="button" class="secondary" id="trfCancel">Batal</button>
+      <button type="button" class="primary" id="trfConfirm">Kirim</button>
     </div>
   </section>
 </div>
@@ -2380,6 +2409,244 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
   alert('Semua data transaksi berhasil dihapus.');
 });
 
+
+/* ===== Kamera di dalam aplikasi (tanpa membuka aplikasi kamera HP) =====
+   Tujuan: mencegah aplikasi dimatikan Android saat kamera bawaan (resolusi penuh) dibuka di HP RAM kecil.
+   Hasil jepretan dimasukkan ke input foto yang sama, sehingga seluruh alur lama (kompres, pratinjau, draf, GPS) tidak berubah.
+   Bila kamera dalam-aplikasi gagal / izin ditolak, tersedia tombol "Kamera HP" (cara lama). */
+(function(){
+  let ov=null, video=null, msg=null, shutter=null, flipBtn=null, stream=null, curId=null, facing='environment', busy=false, openToken=0;
+  const CAM_MAX=1280;
+  function css(){
+    if(document.getElementById('camOvCss')) return;
+    const st=document.createElement('style'); st.id='camOvCss';
+    st.textContent='#camOverlay{position:fixed;inset:0;z-index:13000;background:#000;display:flex;flex-direction:column;color:#fff;font-family:inherit}'
+    +'#camOverlay[hidden]{display:none!important}'
+    +'#camOverlay .cam-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px;background:rgba(0,0,0,.55);font-weight:800;font-size:15px}'
+    +'#camOverlay .cam-top button{min-height:42px;min-width:42px;border:0;border-radius:12px;background:rgba(255,255,255,.16);color:#fff;font-size:18px;font-weight:800;padding:0 14px}'
+    +'#camOverlay .cam-stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#000}'
+    +'#camOverlay video{width:100%;height:100%;object-fit:contain;background:#000}'
+    +'#camOverlay .cam-msg{position:absolute;left:16px;right:16px;top:50%;transform:translateY(-50%);text-align:center;font-size:14px;line-height:1.5;font-weight:700;background:rgba(0,0,0,.6);padding:12px 14px;border-radius:14px}'
+    +'#camOverlay .cam-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.55)}'
+    +'#camOverlay .cam-side{flex:1 1 0;min-height:46px;border:0;border-radius:13px;background:rgba(255,255,255,.16);color:#fff;font-size:13px;font-weight:800;padding:0 10px}'
+    +'#camOverlay .cam-shutter{flex:0 0 76px;width:76px;height:76px;border-radius:50%;border:5px solid #fff;background:#16a34a;box-shadow:0 0 0 3px rgba(0,0,0,.35);padding:0}'
+    +'#camOverlay .cam-shutter:disabled{opacity:.4}';
+    document.head.appendChild(st);
+  }
+  function build(){
+    if(ov) return;
+    css();
+    ov=document.createElement('div'); ov.id='camOverlay'; ov.hidden=true;
+    ov.innerHTML='<div class="cam-top"><span id="camTitle">Ambil Foto</span><button type="button" id="camClose" aria-label="Tutup">✕</button></div>'
+      +'<div class="cam-stage"><video id="camVideo" playsinline muted autoplay></video><div class="cam-msg" id="camMsg" hidden></div></div>'
+      +'<div class="cam-bottom"><button type="button" class="cam-side" id="camSys">📱 Kamera HP</button><button type="button" class="cam-shutter" id="camShutter" aria-label="Ambil foto"></button><button type="button" class="cam-side" id="camFlip">🔄 Balik</button></div>';
+    document.body.appendChild(ov);
+    video=ov.querySelector('#camVideo'); msg=ov.querySelector('#camMsg'); shutter=ov.querySelector('#camShutter'); flipBtn=ov.querySelector('#camFlip');
+    ov.querySelector('#camClose').addEventListener('click',close);
+    shutter.addEventListener('click',snap);
+    flipBtn.addEventListener('click',()=>{ facing=facing==='environment'?'user':'environment'; start(); });
+    ov.querySelector('#camSys').addEventListener('click',()=>{
+      const id=curId; close();
+      const inp=id&&document.getElementById('photo-'+id); if(inp&&!inp.disabled) inp.click();   /* cara lama: kamera bawaan HP */
+    });
+  }
+  function showMsg(t){ if(!msg) return; msg.textContent=t||''; msg.hidden=!t; }
+  function stopStream(){
+    if(stream){ try{ stream.getTracks().forEach(t=>t.stop()); }catch(e){} stream=null; }
+    if(video){ try{ video.pause(); }catch(e){} video.srcObject=null; }
+  }
+  async function start(){
+    const my=++openToken;
+    stopStream(); showMsg('Membuka kamera…'); shutter.disabled=true;
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ showMsg('Kamera dalam aplikasi tidak didukung di perangkat ini. Ketuk "Kamera HP".'); return; }
+    try{
+      const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:facing},width:{ideal:CAM_MAX},height:{ideal:720}}});
+      if(my!==openToken||ov.hidden){ s.getTracks().forEach(t=>t.stop()); return; }   /* ditutup saat izin/kamera masih dimuat */
+      stream=s; video.srcObject=s;
+      await video.play();
+      showMsg(''); shutter.disabled=false;
+    }catch(e){
+      if(my!==openToken) return;
+      const n=e&&e.name||'';
+      showMsg(/NotAllowed|Permission|Security/i.test(n)?'Izin kamera ditolak. Izinkan Kamera untuk aplikasi ini di Pengaturan HP, atau ketuk "Kamera HP".':'Kamera tidak bisa dibuka ('+(n||'error')+'). Ketuk "Kamera HP" untuk memakai kamera bawaan.');
+    }
+  }
+  async function snap(){
+    if(busy||!stream||!video.videoWidth) return;
+    busy=true; shutter.disabled=true;
+    const id=curId; let cv=null;
+    try{
+      const sw=video.videoWidth, sh=video.videoHeight, sc=Math.min(1,CAM_MAX/Math.max(sw,sh));
+      const w=Math.max(1,Math.round(sw*sc)), h=Math.max(1,Math.round(sh*sc));
+      cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      const ctx=cv.getContext('2d',{alpha:false}); ctx.drawImage(video,0,0,w,h);
+      const blob=await new Promise((ok,no)=>cv.toBlob(b=>b?ok(b):no(new Error('gagal membuat foto')),'image/jpeg',0.9));
+      close();
+      const inp=document.getElementById('photo-'+id);
+      if(!inp) throw new Error('kolom foto tidak ditemukan');
+      const dt=new DataTransfer(); dt.items.add(new File([blob],'kamera-'+Date.now()+'.jpg',{type:'image/jpeg'}));
+      inp.files=dt.files;
+      inp.dispatchEvent(new Event('change',{bubbles:true}));   /* memicu handlePhoto() yang sudah ada */
+    }catch(e){
+      console.error('Kamera dalam-aplikasi gagal',e);
+      if(ov&&!ov.hidden){ showMsg('Gagal mengambil foto: '+(e&&e.message||e)+'. Ketuk "Kamera HP".'); shutter.disabled=false; }
+      else alert('Foto gagal diambil: '+(e&&e.message||e));
+    }finally{
+      if(cv){ cv.width=1; cv.height=1; }
+      busy=false;
+    }
+  }
+  function close(){
+    openToken++;
+    stopStream();
+    if(ov){ ov.hidden=true; }
+    document.body.style.overflow=''; curId=null;
+  }
+  function open(id){
+    build(); curId=id; facing='environment';
+    const t=ov.querySelector('#camTitle'); if(t) t.textContent='Ambil Foto';
+    ov.hidden=false; document.body.style.overflow='hidden';
+    start();
+  }
+  /* Ketukan tombol "Ambil Gambar" -> kamera dalam-aplikasi (menggantikan pembukaan kamera bawaan) */
+  document.addEventListener('click',function(e){
+    const lb=e.target.closest&&e.target.closest('label.camera-btn'); if(!lb) return;
+    const id=(lb.getAttribute('for')||'').replace(/^photo-/,''); if(!id) return;
+    const inp=document.getElementById('photo-'+id); if(!inp||!inp.classList.contains('photo-input')) return;
+    e.preventDefault(); e.stopPropagation();
+    if(inp.disabled||(typeof photoJobs!=='undefined'&&photoJobs.has(id))) return;   /* foto sebelumnya masih diproses */
+    open(id);
+  },true);
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden&&ov&&!ov.hidden) close(); });
+  window.cekCamIsOpen=()=>!!(ov&&!ov.hidden);
+  window.cekCamClose=close;
+})();
+/* ===== akhir kamera dalam-aplikasi ===== */
+
+/* ===== Transfer data transaksi antar HP (offline, berbasis berkas) =====
+   Kirim: transaksi -> berkas .json (dipecah ~15 MB per bagian) -> menu Bagikan (Bluetooth / Quick Share / Wi-Fi Direct / Files).
+   Terima: pilih berkas (boleh banyak sekaligus) -> hitung baru vs duplikat -> gabung ke riwayat. Aman diulang. */
+const TRF_APP='cekblok-transfer', TRF_PART=15*1024*1024;
+const trfBackdrop=document.getElementById('trfBackdrop'), trfStart=document.getElementById('trfStart'), trfEnd=document.getElementById('trfEnd'),
+      trfName=document.getElementById('trfName'), trfPhoto=document.getElementById('trfPhoto'), trfInfo=document.getElementById('trfInfo'),
+      trfConfirmBtn=document.getElementById('trfConfirm'), trfFile=document.getElementById('trfFile');
+function trfKey(r,i){ return ensureTransactionCode(r,i)+'|'+String(r&&r.pemeriksa||'').trim().toLowerCase()+'|'+((r&&r.savedAt)||''); }
+function trfRows(){ const s=trfStart.value, e=trfEnd.value; return records().filter(r=>(!s||String(r.tanggal)>=s)&&(!e||String(r.tanggal)<=e)); }
+function trfMB(n){ return (n/1048576).toFixed(n>=10485760?0:1)+' MB'; }
+function trfUpdateInfo(){
+  const rows=trfRows(); let size=0;
+  const withPhoto=trfPhoto.checked;
+  rows.forEach(r=>{
+    size+=JSON.stringify(r,(k,v)=>k==='photo'?'':v).length;
+    if(withPhoto) detailItems(r).forEach(x=>{ if(x&&x.photo) size+=String(x.photo).length; });
+  });
+  const parts=Math.max(1,Math.ceil(size/TRF_PART));
+  trfInfo.textContent=rows.length?`${rows.length} transaksi • ±${trfMB(size)} • ${parts} berkas`:'Tidak ada transaksi pada periode ini.';
+  trfConfirmBtn.disabled=!rows.length;
+}
+function trfOpen(){
+  const dates=records().map(r=>r.tanggal).filter(Boolean).sort();
+  if(!records().length){ alert('Belum ada data transaksi untuk dikirim.'); return; }
+  trfStart.value=dates[0]||''; trfEnd.value=dates[dates.length-1]||'';
+  let nm=''; try{ nm=localStorage.getItem('cekBlokNamaPerangkat')||''; }catch{}
+  if(!nm){ const p=document.getElementById('pemeriksa'); nm=(p&&p.value||'').trim(); }
+  trfName.value=nm;
+  trfUpdateInfo(); trfBackdrop.hidden=false; document.body.style.overflow='hidden';
+}
+function trfClose(){ trfBackdrop.hidden=true; document.body.style.overflow=''; }
+document.getElementById('trfSendBtn').addEventListener('click',trfOpen);
+document.getElementById('trfCancel').addEventListener('click',trfClose);
+document.getElementById('trfAllDates').addEventListener('click',()=>{ trfStart.value=''; trfEnd.value=''; trfUpdateInfo(); });
+[trfStart,trfEnd,trfPhoto].forEach(el=>el.addEventListener('input',trfUpdateInfo));
+trfBackdrop.addEventListener('click',e=>{ if(e.target===trfBackdrop) trfClose(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!trfBackdrop.hidden) trfClose(); });
+
+function trfSafe(s){ return String(s||'HP').trim().replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,24)||'HP'; }
+async function trfSendFiles(files){
+  /* files: [{name,text}] */
+  const C=window.Capacitor, native=!!(C&&typeof C.getPlatform==='function'&&C.getPlatform()!=='web'), PL=(C&&C.Plugins)||{};
+  if(native&&PL.Filesystem&&PL.Share){
+    const uris=[];
+    for(const f of files){
+      const w=await PL.Filesystem.writeFile({path:'transfer/'+f.name,data:f.text,directory:'CACHE',encoding:'utf8',recursive:true});
+      uris.push(w.uri);
+    }
+    await PL.Share.share({title:'Data Cek Blok',files:uris,dialogTitle:'Kirim data ke HP lain (Bluetooth / Quick Share)'});
+    return;
+  }
+  /* PWA / browser: unduh berkas satu per satu */
+  for(const f of files){
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([f.text],{type:'application/json'})); a.download=f.name;
+    document.body.appendChild(a); a.click(); a.remove(); await new Promise(r=>setTimeout(r,400)); setTimeout(()=>URL.revokeObjectURL(a.href),20000);
+  }
+}
+trfConfirmBtn.addEventListener('click',async()=>{
+  if(trfStart.value&&trfEnd.value&&trfStart.value>trfEnd.value){ alert('Tanggal mulai tidak boleh melewati tanggal akhir.'); return; }
+  const nama=(trfName.value||'').trim()||'HP';
+  try{ localStorage.setItem('cekBlokNamaPerangkat',nama); }catch{}
+  trfConfirmBtn.disabled=true; const oldTxt=trfConfirmBtn.textContent; trfConfirmBtn.textContent='Menyiapkan…';
+  try{
+    /* kunci kode transaksi data lama agar sama di semua HP (dipakai untuk mendeteksi duplikat) */
+    const all=records(); let changed=false;
+    all.forEach((r,i)=>{ if(r&&!r.kodeTransaksi){ r.kodeTransaksi=ensureTransactionCode(r,i); changed=true; } });
+    if(changed) await saveRecords(all);
+    const rows=trfRows(); if(!rows.length){ alert('Tidak ada transaksi pada periode yang dipilih.'); return; }
+    const withPhoto=trfPhoto.checked, rep=withPhoto?null:((k,v)=>k==='photo'?'':v);
+    const strs=rows.map(r=>JSON.stringify(r,rep));
+    const groups=[]; let cur=[], sz=0;
+    strs.forEach(s=>{ if(cur.length&&sz+s.length>TRF_PART){ groups.push(cur); cur=[]; sz=0; } cur.push(s); sz+=s.length; });
+    if(cur.length) groups.push(cur);
+    const now=new Date(), p2=n=>String(n).padStart(2,'0');
+    const stamp=now.getFullYear()+p2(now.getMonth()+1)+p2(now.getDate())+'-'+p2(now.getHours())+p2(now.getMinutes());
+    const files=groups.map((g,i)=>({
+      name:`CekBlok_${trfSafe(nama)}_${stamp}_bagian${i+1}dari${groups.length}.json`,
+      text:`{"app":"${TRF_APP}","v":1,"perangkat":${JSON.stringify(nama)},"dibuat":${now.getTime()},"foto":${withPhoto},"bagian":${i+1},"dari":${groups.length},"jumlah":${g.length},"records":[${g.join(',')}]}`
+    }));
+    trfClose();
+    await trfSendFiles(files);
+    if(window.cekBlokToast) window.cekBlokToast(`${rows.length} transaksi siap dikirim (${files.length} berkas)`);
+  }catch(err){
+    const m=String(err&&err.message||err||'');
+    if(!/cancel|dibatal|abort/i.test(m)) alert('Gagal menyiapkan/mengirim data: '+m);
+  }finally{ trfConfirmBtn.disabled=false; trfConfirmBtn.textContent=oldTxt; }
+});
+
+document.getElementById('trfReceiveBtn').addEventListener('click',()=>{ trfFile.value=''; trfFile.click(); });
+trfFile.addEventListener('change',async()=>{
+  const files=[...(trfFile.files||[])]; if(!files.length) return;
+  const incoming=[], errors=[], sources=new Set(); let nFiles=0;
+  for(const f of files){
+    try{
+      const j=JSON.parse(await f.text());
+      if(!j||j.app!==TRF_APP||!Array.isArray(j.records)) throw new Error('bukan berkas transfer Cek Blok');
+      nFiles++; if(j.perangkat) sources.add(j.perangkat);
+      j.records.forEach(r=>{ if(r&&typeof r==='object'&&(r.blok||r.tanggal)) incoming.push({r,src:j.perangkat||''}); });
+    }catch(e){ errors.push(f.name+' ('+(e&&e.message||'rusak')+')'); }
+  }
+  trfFile.value='';
+  if(!nFiles){ alert('Tidak ada berkas transfer yang valid.'+(errors.length?'\n\nBerkas bermasalah:\n'+errors.join('\n'):'')); return; }
+  const cur=records(), keys=new Set(cur.map((r,i)=>trfKey(r,i))), codes=new Set(cur.map((r,i)=>ensureTransactionCode(r,i)));
+  const toAdd=[]; let dup=0;
+  incoming.forEach(({r,src})=>{
+    const k=trfKey(r,0);
+    if(keys.has(k)){ dup++; return; }
+    keys.add(k);
+    const copy={...r};
+    if(!copy.kodeTransaksi) copy.kodeTransaksi=ensureTransactionCode(copy,0);
+    if(codes.has(copy.kodeTransaksi)){ let n=2; while(codes.has(copy.kodeTransaksi+'-'+n)) n++; copy.kodeTransaksi+='-'+n; }
+    codes.add(copy.kodeTransaksi);
+    if(src&&!copy.sumberPerangkat) copy.sumberPerangkat=src;
+    toAdd.push(copy);
+  });
+  const ringkas=`Berkas dibaca: ${nFiles}${sources.size?' (dari: '+[...sources].join(', ')+')':''}\nTransaksi dalam berkas: ${incoming.length}\nBaru (akan ditambahkan): ${toAdd.length}\nSudah ada (dilewati): ${dup}`+(errors.length?'\n\nBerkas dilewati:\n'+errors.join('\n'):'');
+  if(!toAdd.length){ alert('Tidak ada transaksi baru.\n\n'+ringkas); return; }
+  if(!confirm('Gabungkan data ke HP ini?\n\n'+ringkas)) return;
+  const merged=[...cur,...toAdd].map((r,i)=>({r,i})).sort((a,b)=>String(a.r.tanggal||'').localeCompare(String(b.r.tanggal||''))||((a.r.savedAt||0)-(b.r.savedAt||0))||(a.i-b.i)).map(x=>x.r);
+  const ok=await saveRecords(merged); if(!ok) return;
+  renderHistory();
+  alert(`Berhasil: ${toAdd.length} transaksi baru digabung.\nTotal transaksi sekarang: ${merged.length}.`);
+});
+/* ===== akhir transfer data antar HP ===== */
 
 /* Header: mengecil saat halaman di-scroll (jeda ambang mencegah berkedip) */
 (function(){
