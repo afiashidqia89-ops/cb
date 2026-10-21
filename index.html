@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Pemeriksaan Kondisi Blok</title>
   <meta name="theme-color" content="#166534">
-<meta name="cek-blok-build" content="2026-10-20-v30-android">
+<meta name="cek-blok-build" content="2026-10-21-v31-android">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Cek Blok">
@@ -965,15 +965,15 @@ if(document.readyState==='complete')done();else window.addEventListener('load',d
             <div class="field"><label>Nomor Baris</label>
 <input id="sisiBaris" name="sisiBaris" type="hidden" value="">
 <div class="pasar-pikul-options" id="pasarPikulOptions" role="group" aria-label="Pilih sisi dan nomor baris">
-  <div class="pasar-side-card" data-side-card="Kanan">
-    <button type="button" class="pasar-pikul-btn" data-pasar-pikul="Kanan" aria-pressed="false">Baris Kanan</button>
-    <label class="pasar-number-label" for="noPasarKanan">Nomor Baris Kanan</label>
-    <input class="pasar-number-input" id="noPasarKanan" type="number" min="1" inputmode="numeric" placeholder="Contoh: 12" disabled>
-  </div>
   <div class="pasar-side-card" data-side-card="Kiri">
     <button type="button" class="pasar-pikul-btn" data-pasar-pikul="Kiri" aria-pressed="false">Baris Kiri</button>
     <label class="pasar-number-label" for="noPasarKiri">Nomor Baris Kiri</label>
     <input class="pasar-number-input" id="noPasarKiri" type="number" min="1" inputmode="numeric" placeholder="Contoh: 13" disabled>
+  </div>
+  <div class="pasar-side-card" data-side-card="Kanan">
+    <button type="button" class="pasar-pikul-btn" data-pasar-pikul="Kanan" aria-pressed="false">Baris Kanan</button>
+    <label class="pasar-number-label" for="noPasarKanan">Nomor Baris Kanan</label>
+    <input class="pasar-number-input" id="noPasarKanan" type="number" min="1" inputmode="numeric" placeholder="Contoh: 12" disabled>
   </div>
 </div>
 <div class="pasar-pikul-error" id="pasarPikulError">Pilih minimal satu sisi dan isi nomor baris yang dipilih.</div></div>
@@ -1178,7 +1178,6 @@ if(document.readyState==='complete')done();else window.addEventListener('load',d
           <button type="button" class="secondary" id="trfReceiveBtn">📥 Terima &amp; Gabung Data dari HP Lain</button>
           <input id="trfFile" type="file" multiple hidden>
         </div>
-        <small style="display:block;margin-top:8px;color:#6b21a8;font-size:12px;line-height:1.45">Setelah menekan <b>Terima</b>, pilih berkas <b>CekBlok_…json</b> yang dikirim dari HP lain (biasanya di folder <b>Download</b> atau <b>Bluetooth</b>). Berkas Excel (.xlsx) hasil ekspor <b>tidak</b> bisa digabung.</small>
       </div>
       <div class="history-data-tools db-tools report-box" aria-label="Pembaruan DB Aresta" style="border-color:#bbf7d0;background:linear-gradient(135deg,#f0fdf4,#fff);flex-direction:column;align-items:stretch">
         <div class="history-data-tools-copy"><b style="color:#14532d">Data Master Blok (DB Aresta)</b><small id="dbArestaStatus"></small><small>Perbarui dari file Excel (.xlsx) dengan kolom: Estate, Kebun, Afdeling, Blok, Luas (Ha), Jumlah Pokok. Riwayat pemeriksaan tidak berubah.</small></div>
@@ -2175,7 +2174,7 @@ async function exportExcelWithPhotos(selectedRows){
     const ws1=wb.addWorksheet('Rekap',{views:[{state:'frozen',ySplit:1}]});
     ws1.columns=[
       {header:'No',key:'no',width:6},{header:'Kode Transaksi',key:'kode',width:28},{header:'Tanggal',key:'tgl',width:12},{header:'Pemeriksa',key:'pem',width:20},
-      {header:'Estate',key:'pt',width:8},{header:'Kebun',key:'kebun',width:10},{header:'Afdeling',key:'afd',width:10},{header:'Blok',key:'blok',width:10},{header:'Luas (Ha)',key:'luas',width:10},{header:'Jumlah Pokok',key:'pokok',width:13},{header:'Pasar Kanan',key:'pasarKanan',width:13},{header:'Nomor Baris Kanan',key:'noKanan',width:16},{header:'Pasar Kiri',key:'pasarKiri',width:13},{header:'Nomor Baris Kiri',key:'noKiri',width:16},{header:'Ancak',key:'ancak',width:8},{header:'Status Ancak',key:'ancakSt',width:16},
+      {header:'Estate',key:'pt',width:8},{header:'Kebun',key:'kebun',width:10},{header:'Afdeling',key:'afd',width:10},{header:'Blok',key:'blok',width:10},{header:'Luas (Ha)',key:'luas',width:10},{header:'Jumlah Pokok',key:'pokok',width:13},{header:'Pasar Kanan',key:'pasarKanan',width:13},{header:'Nomor Baris Kanan',key:'noKanan',width:16},{header:'Pasar Kiri',key:'pasarKiri',width:13},{header:'Nomor Baris Kiri',key:'noKiri',width:16},{header:'Ancak',key:'ancak',width:8},{header:'Kategori Ancak',key:'ancakSt',width:18},
       {header:'Semak (Ha)',key:'semak',width:11},{header:'Tunasan (Pkk)',key:'tunasan',width:13},{header:'Titi (Unit)',key:'titi',width:11},
       {header:'Kerdil (Pkk)',key:'kerdil',width:12},{header:'Banjir (Ha)',key:'banjir',width:11},{header:'Jumlah Foto',key:'foto',width:11},
       {header:'Status',key:'status',width:20},{header:'Catatan',key:'cat',width:45}
@@ -2195,12 +2194,12 @@ async function exportExcelWithPhotos(selectedRows){
     const ws2=wb.addWorksheet('Detail Temuan + Foto',{views:[{state:'frozen',ySplit:1}]});
     ws2.columns=[
       {header:'No',key:'no',width:6},{header:'Kode Transaksi',key:'kode',width:28},{header:'Tanggal',key:'tgl',width:12},{header:'Estate',key:'pt',width:8},{header:'Kebun',key:'kebun',width:10},{header:'Afdeling',key:'afd',width:10},{header:'Blok',key:'blok',width:10},
-      {header:'Pasar Kanan',key:'pasarKanan',width:13},{header:'Nomor Baris Kanan',key:'noKanan',width:16},{header:'Pasar Kiri',key:'pasarKiri',width:13},{header:'Nomor Baris Kiri',key:'noKiri',width:16},{header:'Ancak',key:'ancak',width:8},{header:'Temuan',key:'tem',width:24},{header:'Sampel',key:'sam',width:9},{header:'Nilai',key:'nilai',width:9},
+      {header:'Pasar Kanan',key:'pasarKanan',width:13},{header:'Nomor Baris Kanan',key:'noKanan',width:16},{header:'Pasar Kiri',key:'pasarKiri',width:13},{header:'Nomor Baris Kiri',key:'noKiri',width:16},{header:'Ancak',key:'ancak',width:8},{header:'Kategori Ancak',key:'katAncak',width:18},{header:'Temuan',key:'tem',width:24},{header:'Sampel',key:'sam',width:9},{header:'Nilai',key:'nilai',width:9},
       {header:'Satuan',key:'sat',width:9},{header:'Latitude',key:'lat',width:13},{header:'Longitude',key:'lng',width:13},{header:'Akurasi (m)',key:'akr',width:11},{header:'Sumber Lokasi',key:'src',width:18},
       {header:'Peta',key:'peta',width:14},{header:'Foto',key:'foto',width:34}
     ];
     styleHeader(ws2);
-    const PHOTO_COL=20; // indeks kolom Foto (0-based), bergeser karena Kode Transaksi
+    const PHOTO_COL=ws2.getColumn('foto').number-1; // indeks kolom Foto (0-based), mengikuti posisi kolom 'foto' otomatis
     const BOX_W=230, BOX_H=170;
     let n=0;
     for(let i=0;i<rows.length;i++){
@@ -2213,7 +2212,7 @@ async function exportExcelWithPhotos(selectedRows){
         const d=sm.d, loc=d.location||null, val=sm.val;
         if(!(val>0||d.photo||loc)) continue;
         n++;
-        const row=ws2.addRow({no:n,kode:ensureTransactionCode(r,i),tgl:r.tanggal,pt:r.estate||r.pt||'',kebun:r.kebun||'',afd:r.afdeling,blok:r.blok,pasarKanan:r.noPasarKanan?'Ya':'',noKanan:r.noPasarKanan||'',pasarKiri:r.noPasarKiri?'Ya':'',noKiri:r.noPasarKiri||'',ancak:r.ancak,tem:labels[key],sam:sm.no,nilai:val,sat:units[key],
+        const row=ws2.addRow({no:n,kode:ensureTransactionCode(r,i),tgl:r.tanggal,pt:r.estate||r.pt||'',kebun:r.kebun||'',afd:r.afdeling,blok:r.blok,pasarKanan:r.noPasarKanan?'Ya':'',noKanan:r.noPasarKanan||'',pasarKiri:r.noPasarKiri?'Ya':'',noKiri:r.noPasarKiri||'',ancak:r.ancak,katAncak:r.ancakStatus||'',tem:labels[key],sam:sm.no,nilai:val,sat:units[key],
           lat:loc?Number(Number(loc.latitude).toFixed(6)):null,lng:loc?Number(Number(loc.longitude).toFixed(6)):null,akr:loc&&loc.accuracy!=null?loc.accuracy:null,src:loc?(loc.source||'GPS'):'',peta:'',foto:d.photo?'':'Tidak ada foto'});
         row.eachCell({includeEmpty:true},c=>{c.border=border;c.alignment={vertical:'middle',wrapText:true};});
         if(loc){row.getCell('peta').value={text:'Buka Peta',hyperlink:`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`};row.getCell('peta').font={color:{argb:'FF0563C1'},underline:true};}
@@ -2232,7 +2231,7 @@ async function exportExcelWithPhotos(selectedRows){
         const db=(r.details&&r.details.bukti)||null;
         if(db&&(db.photo||db.location)){
           const loc=db.location||null; n++;
-          const row=ws2.addRow({no:n,kode:ensureTransactionCode(r,i),tgl:r.tanggal,pt:r.estate||r.pt||'',kebun:r.kebun||'',afd:r.afdeling,blok:r.blok,pasarKanan:r.noPasarKanan?'Ya':'',noKanan:r.noPasarKanan||'',pasarKiri:r.noPasarKiri?'Ya':'',noKiri:r.noPasarKiri||'',ancak:r.ancak,tem:r.ancakStatus||'Foto Bukti Ancak',sam:1,nilai:null,sat:'',
+          const row=ws2.addRow({no:n,kode:ensureTransactionCode(r,i),tgl:r.tanggal,pt:r.estate||r.pt||'',kebun:r.kebun||'',afd:r.afdeling,blok:r.blok,pasarKanan:r.noPasarKanan?'Ya':'',noKanan:r.noPasarKanan||'',pasarKiri:r.noPasarKiri?'Ya':'',noKiri:r.noPasarKiri||'',ancak:r.ancak,katAncak:r.ancakStatus||'',tem:'',sam:1,nilai:null,sat:'',
             lat:loc?Number(Number(loc.latitude).toFixed(6)):null,lng:loc?Number(Number(loc.longitude).toFixed(6)):null,akr:loc&&loc.accuracy!=null?loc.accuracy:null,src:loc?(loc.source||'GPS'):'',peta:'',foto:db.photo?'':'Tidak ada foto'});
           row.eachCell({includeEmpty:true},c=>{c.border=border;c.alignment={vertical:'middle',wrapText:true};});
           if(loc){row.getCell('peta').value={text:'Buka Peta',hyperlink:`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`};row.getCell('peta').font={color:{argb:'FF0563C1'},underline:true};}
@@ -2414,9 +2413,9 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
 /* ===== Kamera di dalam aplikasi (tanpa membuka aplikasi kamera HP) =====
    Tujuan: mencegah aplikasi dimatikan Android saat kamera bawaan (resolusi penuh) dibuka di HP RAM kecil.
    Hasil jepretan dimasukkan ke input foto yang sama, sehingga seluruh alur lama (kompres, pratinjau, draf, GPS) tidak berubah.
-   Bila kamera dalam-aplikasi gagal / izin ditolak, tersedia tombol "Kamera HP" (cara lama). */
+   Aplikasi kamera bawaan HP TIDAK PERNAH dibuka: bila kamera dalam-aplikasi gagal / izin ditolak, pakai tombol "Ulangi". */
 (function(){
-  let ov=null, video=null, msg=null, shutter=null, flipBtn=null, stream=null, curId=null, facing='environment', busy=false, openToken=0;
+  let ov=null, video=null, msg=null, shutter=null, flipBtn=null, stream=null, curId=null, facing='environment', busy=false, openToken=0, resume=false;
   const CAM_MAX=1280;
   function css(){
     if(document.getElementById('camOvCss')) return;
@@ -2440,16 +2439,13 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
     ov=document.createElement('div'); ov.id='camOverlay'; ov.hidden=true;
     ov.innerHTML='<div class="cam-top"><span id="camTitle">Ambil Foto</span><button type="button" id="camClose" aria-label="Tutup">✕</button></div>'
       +'<div class="cam-stage"><video id="camVideo" playsinline muted autoplay></video><div class="cam-msg" id="camMsg" hidden></div></div>'
-      +'<div class="cam-bottom"><button type="button" class="cam-side" id="camSys">📱 Kamera HP</button><button type="button" class="cam-shutter" id="camShutter" aria-label="Ambil foto"></button><button type="button" class="cam-side" id="camFlip">🔄 Balik</button></div>';
+      +'<div class="cam-bottom"><button type="button" class="cam-side" id="camRetry">↻ Ulangi</button><button type="button" class="cam-shutter" id="camShutter" aria-label="Ambil foto"></button><button type="button" class="cam-side" id="camFlip">🔄 Balik</button></div>';
     document.body.appendChild(ov);
     video=ov.querySelector('#camVideo'); msg=ov.querySelector('#camMsg'); shutter=ov.querySelector('#camShutter'); flipBtn=ov.querySelector('#camFlip');
     ov.querySelector('#camClose').addEventListener('click',close);
     shutter.addEventListener('click',snap);
     flipBtn.addEventListener('click',()=>{ facing=facing==='environment'?'user':'environment'; start(); });
-    ov.querySelector('#camSys').addEventListener('click',()=>{
-      const id=curId; close();
-      const inp=id&&document.getElementById('photo-'+id); if(inp&&!inp.disabled) inp.click();   /* cara lama: kamera bawaan HP */
-    });
+    ov.querySelector('#camRetry').addEventListener('click',()=>{ start(); });   /* coba buka kamera dalam-aplikasi lagi (mis. setelah izin diberikan) */
   }
   function showMsg(t){ if(!msg) return; msg.textContent=t||''; msg.hidden=!t; }
   function stopStream(){
@@ -2459,7 +2455,7 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
   async function start(){
     const my=++openToken;
     stopStream(); showMsg('Membuka kamera…'); shutter.disabled=true;
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ showMsg('Kamera dalam aplikasi tidak didukung di perangkat ini. Ketuk "Kamera HP".'); return; }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ showMsg('Kamera dalam aplikasi tidak didukung di perangkat ini. Perbarui Android System WebView / Chrome, lalu ketuk Ulangi.'); return; }
     try{
       const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:facing},width:{ideal:CAM_MAX},height:{ideal:720}}});
       if(my!==openToken||ov.hidden){ s.getTracks().forEach(t=>t.stop()); return; }   /* ditutup saat izin/kamera masih dimuat */
@@ -2469,7 +2465,7 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
     }catch(e){
       if(my!==openToken) return;
       const n=e&&e.name||'';
-      showMsg(/NotAllowed|Permission|Security/i.test(n)?'Izin kamera ditolak. Izinkan Kamera untuk aplikasi ini di Pengaturan HP, atau ketuk "Kamera HP".':'Kamera tidak bisa dibuka ('+(n||'error')+'). Ketuk "Kamera HP" untuk memakai kamera bawaan.');
+      showMsg(/NotAllowed|Permission|Security/i.test(n)?'Izin kamera ditolak. Izinkan Kamera untuk aplikasi ini di Pengaturan HP, lalu ketuk Ulangi.':'Kamera tidak bisa dibuka ('+(n||'error')+'). Tutup aplikasi lain yang memakai kamera, lalu ketuk Ulangi.');
     }
   }
   async function snap(){
@@ -2490,7 +2486,7 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
       inp.dispatchEvent(new Event('change',{bubbles:true}));   /* memicu handlePhoto() yang sudah ada */
     }catch(e){
       console.error('Kamera dalam-aplikasi gagal',e);
-      if(ov&&!ov.hidden){ showMsg('Gagal mengambil foto: '+(e&&e.message||e)+'. Ketuk "Kamera HP".'); shutter.disabled=false; }
+      if(ov&&!ov.hidden){ showMsg('Gagal mengambil foto: '+(e&&e.message||e)+'. Ketuk Ulangi.'); shutter.disabled=false; }
       else alert('Foto gagal diambil: '+(e&&e.message||e));
     }finally{
       if(cv){ cv.width=1; cv.height=1; }
@@ -2498,7 +2494,7 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
     }
   }
   function close(){
-    openToken++;
+    openToken++; resume=false;
     stopStream();
     if(ov){ ov.hidden=true; }
     document.body.style.overflow=''; curId=null;
@@ -2518,7 +2514,19 @@ document.getElementById('deleteAllBtn').addEventListener('click',async()=>{
     if(inp.disabled||(typeof photoJobs!=='undefined'&&photoJobs.has(id))) return;   /* foto sebelumnya masih diproses */
     open(id);
   },true);
-  document.addEventListener('visibilitychange',()=>{ if(document.hidden&&ov&&!ov.hidden) close(); });
+  /* Pengaman: klik apa pun yang mengarah langsung ke input foto (kode lain, .click(), dsb) tidak boleh membuka kamera/galeri bawaan HP */
+  document.addEventListener('click',function(e){
+    const t=e.target; if(!t||!t.classList||!t.classList.contains('photo-input')) return;
+    e.preventDefault(); e.stopPropagation();
+    const id=(t.id||'').replace(/^photo-/,'');
+    if(id&&!t.disabled&&!(typeof photoJobs!=='undefined'&&photoJobs.has(id))&&!(ov&&!ov.hidden)) open(id);
+  },true);
+  /* Dialog izin kamera / HP dikunci: kamera dilepas lalu dibuka lagi otomatis saat kembali ke aplikasi (overlay tidak ditutup) */
+  document.addEventListener('visibilitychange',()=>{
+    if(!ov||ov.hidden) return;
+    if(document.hidden){ if(stream){ stopStream(); resume=true; shutter.disabled=true; } }
+    else if(resume){ resume=false; start(); }
+  });
   window.cekCamIsOpen=()=>!!(ov&&!ov.hidden);
   window.cekCamClose=close;
 })();
@@ -2618,15 +2626,14 @@ trfFile.addEventListener('change',async()=>{
   const incoming=[], errors=[], sources=new Set(); let nFiles=0;
   for(const f of files){
     try{
-      if(/\.(xlsx?|csv|pdf|zip|jpe?g|png|apk)$/i.test(f.name||'')) throw new Error('ini bukan berkas transfer (Excel/lainnya)');
-      let j; try{ j=JSON.parse(await f.text()); }catch(pe){ throw new Error('bukan berkas transfer Cek Blok'); }
+      const j=JSON.parse(await f.text());
       if(!j||j.app!==TRF_APP||!Array.isArray(j.records)) throw new Error('bukan berkas transfer Cek Blok');
       nFiles++; if(j.perangkat) sources.add(j.perangkat);
       j.records.forEach(r=>{ if(r&&typeof r==='object'&&(r.blok||r.tanggal)) incoming.push({r,src:j.perangkat||''}); });
     }catch(e){ errors.push(f.name+' ('+(e&&e.message||'rusak')+')'); }
   }
   trfFile.value='';
-  if(!nFiles){ alert('Tidak ada berkas transfer yang valid.\n\nPilih berkas bernama CekBlok_…json yang dibuat lewat tombol "Kirim Data ke HP Lain" di HP pengirim. Berkas Excel hasil ekspor tidak bisa digabung.'+(errors.length?'\n\nBerkas bermasalah:\n'+errors.join('\n'):'')); return; }
+  if(!nFiles){ alert('Tidak ada berkas transfer yang valid.'+(errors.length?'\n\nBerkas bermasalah:\n'+errors.join('\n'):'')); return; }
   const cur=records(), keys=new Set(cur.map((r,i)=>trfKey(r,i))), codes=new Set(cur.map((r,i)=>ensureTransactionCode(r,i)));
   const toAdd=[]; let dup=0;
   incoming.forEach(({r,src})=>{
