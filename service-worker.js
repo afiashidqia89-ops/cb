@@ -1,6 +1,6 @@
 /* Service worker "Pemeriksaan Kondisi Blok" – agar aplikasi bisa dibuka tanpa internet.
    Taruh di folder yang sama dengan index.html. Ganti VERSION setiap kali index.html diperbarui. */
-const VERSION = 'cek-blok-v29';
+const VERSION = 'cek-blok-v31';
 const INDEX = './index.html';
 const CORE = ['./', INDEX, './manifest.json', './icon-192.png', './icon-512.png', './menu-hero.png'];
 const CDN = ['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'];
