@@ -66,12 +66,20 @@ jobs:
         run: |
           mkdir -p www
           cp index.html www/
-          for f in manifest.json icon-192.png icon-512.png menu-hero.png; do
+          for f in manifest.json icon-192.png icon-512.png menu-hero.png pdf.min.js pdf.worker.min.js; do
             if [ -f "$f" ]; then cp "$f" www/; else echo "lewati $f (tidak ada)"; fi
           done
 
       - name: Pasang dependensi
         run: npm install --no-audit --no-fund
+
+      - name: Sertakan pustaka Excel di dalam APK (ekspor .xlsx jalan offline)
+        run: |
+          set -e
+          cp node_modules/exceljs/dist/exceljs.min.js www/exceljs.min.js
+          SIZE=$(wc -c < www/exceljs.min.js)
+          echo "exceljs.min.js: $SIZE byte"
+          test "$SIZE" -gt 100000
 
       - name: Buat proyek Android
         run: npx cap add android
